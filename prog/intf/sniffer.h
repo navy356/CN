@@ -23,3 +23,4 @@ char * get_ethernet_header(int key,int row_len);
 char ** get_ipv4_header(int key,int row_len);
 char ** get_tcp_packet(int key, int row_len);
 void save_pcap();
+char **get_info(int row_len);

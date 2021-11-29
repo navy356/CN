@@ -23,3 +23,5 @@ void postCapHeader(WIN * win);
 WIN *getPacketWindow(int x, int y, int h, int w);
 void updatePacketWindow(WIN * win, char ** packet,int size,int y);
 void print_packet(WIN * win, char ** packet, int size,int y);
+void updateInfoWindow(WIN *win, char **info);
+WIN *getInfoWindow(int x, int y, int h, int w);

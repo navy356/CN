@@ -122,6 +122,21 @@ WIN *getPacketWindow(int x, int y, int h, int w)
     return cap;
 }
 
+WIN *getInfoWindow(int x, int y, int h, int w)
+{
+    WINDOW *info_win = newwin(h, w, y, x);
+    int offsetY = getPercentageInt(18, h);
+    int offsetX = getPercentageInt(2.5, w);
+    WINDOW *subwin = derwin(info_win, h - offsetY * 2, w - offsetX * 2, offsetY, offsetX);
+    WIN *info = (WIN *)malloc(sizeof(WIN));
+    info->menuw = info_win;
+    info->sub_menuw = subwin;
+    info->menu = NULL;
+
+    return info;
+}
+
+
 void updatePacketWindow(WIN *win, char **packet, int size, int y)
 {
     keypad(win->menuw, true);
@@ -132,6 +147,21 @@ void updatePacketWindow(WIN *win, char **packet, int size, int y)
     box(win->menuw, 0, 0);
     print_packet(win, packet, size, y);
     box(win->sub_menuw, 0, 0);
+    wattroff(win->menuw, COLOR_PAIR(1));
+    wrefresh(win->menuw);
+}
+
+void updateInfoWindow(WIN *win, char **info)
+{
+    keypad(win->menuw, true);
+    wbkgd(win->menuw, COLOR_PAIR(1));
+    wbkgd(win->sub_menuw, COLOR_PAIR(1));
+    wclear(win->menuw);
+    wattron(win->menuw, COLOR_PAIR(1));
+    box(win->menuw, 0, 0);
+    mvwprintw(win->sub_menuw,0,0,info[0]);
+    mvwprintw(win->sub_menuw,1,0,info[1]);
+    mvwprintw(win->sub_menuw,2,0,info[2]);
     wattroff(win->menuw, COLOR_PAIR(1));
     wrefresh(win->menuw);
 }

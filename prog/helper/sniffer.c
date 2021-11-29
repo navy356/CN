@@ -33,6 +33,39 @@ void init_sniffer()
 	convo_head = init_listc();
 }
 
+char **get_info(int row_len)
+{
+	int col_p = getPercentageInt(100, row_len);
+	int col_nop = getPercentageInt(100, row_len);
+	int col_ret = getPercentageInt(100, row_len);
+
+	char entry_format[MAX_BUFFER_SIZE];
+	sprintf(entry_format,"%%-%d.%ds", col_nop, col_nop);
+
+	char *p = (char *)calloc(MAX_BUFFER_SIZE, sizeof(char));
+	char *nop = (char *)calloc(MAX_BUFFER_SIZE, sizeof(char));
+	char *ret = (char *)calloc(MAX_BUFFER_SIZE, sizeof(char));
+
+	char tmp[MAX_BUFFER_SIZE];
+	char tmp2[MAX_BUFFER_SIZE];
+	char tmp3[MAX_BUFFER_SIZE];
+
+	sprintf(tmp,"Piggybacked Transmissions %d",piggybacking);
+	sprintf(tmp2,"Non piggybacked Transmissions %d",not_piggybacking);
+	sprintf(tmp3,"Retransmissions %d",retransmissions);
+
+	sprintf(p,entry_format,print_centre(tmp,col_p));
+	sprintf(nop,entry_format,print_centre(tmp2,col_nop));
+	sprintf(ret,entry_format,print_centre(tmp3,col_ret));
+
+	char ** info = (char **)calloc(3,sizeof(char *));
+	info[0]=p;
+	info[1]=nop;
+	info[2]=ret;
+
+	return info;
+}
+
 void setDisable(int x)
 {
 	disable = x;
@@ -390,13 +423,13 @@ void parseConvo(int conv_key)
 			if ((tcph->fin ^ 1) == 0)
 			{
 				fin++;
-				finseq1=next_ack1;
+				finseq1 = next_ack1;
 			}
 			if ((tcph->ack ^ 1) == 0)
 			{
 				if (fin2 > finack2)
 				{
-					if(ack1==finseq2)
+					if (ack1 == finseq2)
 						finack2++;
 				}
 			}
@@ -418,13 +451,13 @@ void parseConvo(int conv_key)
 			if ((tcph->fin ^ 1) == 0)
 			{
 				fin++;
-				finseq2=next_ack2;
+				finseq2 = next_ack2;
 			}
 			if ((tcph->ack ^ 1) == 0)
 			{
 				if (fin > finack)
 				{
-					if(ack2==finseq1)
+					if (ack2 == finseq1)
 						finack++;
 				}
 			}
@@ -443,7 +476,7 @@ void parseConvo(int conv_key)
 				if ((seq1 < next_ack1) && (tcph->rst ^ 1) != 0)
 				{
 					updateInfo(&head, tmp->key, "RT|");
-					if(finishedInfo(&head,tmp->key)==0)
+					if (finishedInfo(&head, tmp->key) == 0)
 					{
 						retransmissions++;
 					}
@@ -456,13 +489,13 @@ void parseConvo(int conv_key)
 			if ((tcph->fin ^ 1) == 0)
 			{
 				fin++;
-				finseq1=next_ack1;
+				finseq1 = next_ack1;
 			}
 			if ((tcph->ack ^ 1) == 0)
 			{
 				if (fin2 > finack2)
 				{
-					if(ack1==finseq2)
+					if (ack1 == finseq2)
 						finack2++;
 				}
 			}
@@ -480,6 +513,10 @@ void parseConvo(int conv_key)
 				if ((seq2 < next_ack2) && (tcph->rst ^ 1) != 0)
 				{
 					updateInfo(&head, tmp->key, "RT|");
+					if (finishedInfo(&head, tmp->key) == 0)
+					{
+						retransmissions++;
+					}
 				}
 			}
 			next_ack2 = seq2 + data_size;
@@ -489,13 +526,13 @@ void parseConvo(int conv_key)
 			if ((tcph->fin ^ 1) == 0)
 			{
 				fin++;
-				finseq2=next_ack2;
+				finseq2 = next_ack2;
 			}
 			if ((tcph->ack ^ 1) == 0)
 			{
 				if (fin > finack)
 				{
-					if(ack2==finseq1)
+					if (ack2 == finseq1)
 						finack++;
 				}
 			}
@@ -513,7 +550,7 @@ void parseConvo(int conv_key)
 
 		updateInfo(&head, tmp->key, "~");
 		tmp = tmp->next;
-		if ((fin >= 1) && (finack >= 1) && (fin2 >=1 ) && (finack2 >= 1))
+		if ((fin >= 1) && (finack >= 1) && (fin2 >= 1) && (finack2 >= 1))
 		{
 			setFinishc(&convo_head, tmp->convo);
 		}

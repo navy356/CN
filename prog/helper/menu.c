@@ -90,6 +90,12 @@ void capture_menu_handler(WIN *win)
         case 's':
             save_pcap();
             break;
+        case 'i':
+            show_info(win);
+            wclear(win->menuw);
+            updateCapWin(win);
+            wrefresh(win->menuw);
+            break;
         case 10: /* Enter */
         {
             ITEM *cur;
@@ -127,7 +133,7 @@ void chosen(char *name, WIN *win)
     WIN *cap_window = getCaptureWindow(0, 0, h, w);
     updateCapWin(cap_window);
     name = trim(name);
-    start_capture(name, cap_window,0);
+    start_capture(name, cap_window, 0);
     wclear(win->menuw);
     capture_menu_handler(cap_window);
 }
@@ -138,7 +144,7 @@ void open_pcap_file(char *name)
     WIN *cap_window = getCaptureWindow(0, 0, h, w);
     updateCapWin(cap_window);
     name = trim(name);
-    start_capture(name, cap_window,1);
+    start_capture(name, cap_window, 1);
     capture_menu_handler(cap_window);
 }
 
@@ -160,7 +166,7 @@ void packet_handler(WIN *win, char **packets, int size)
             {
                 start = start - h;
             }
-            updatePacketWindow(win,packets,size,start);
+            updatePacketWindow(win, packets, size, start);
             break;
         case KEY_UP:
         case KEY_PPAGE:
@@ -175,6 +181,33 @@ void packet_handler(WIN *win, char **packets, int size)
             return;
         }
     }
+}
+
+void info_handler(WIN *win)
+{
+    int c;
+    while (((c = wgetch(win->menuw)) != KEY_F(1)))
+    {
+        switch (c)
+        {
+        case 'i':
+            return;
+        }
+    }
+}
+
+void show_info(WIN *win)
+{
+    int h, w;
+    getmaxyx(getWin(), h, w);
+    int offsetY = getPercentageInt(18, h);
+    int offsetX = getPercentageInt(2.5, w);
+    setDisable(1);
+    WIN *info_window = getInfoWindow(0, 0, h, w);
+    char **info = get_info(w - 2 * offsetX);
+    updateInfoWindow(win, info);
+    info_handler(win);
+    setDisable(0);
 }
 
 void packetChosen(char *name, WIN *win)

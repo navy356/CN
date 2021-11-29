@@ -13,3 +13,5 @@ int getCur();
 void packetChosen(char * name, WIN *win);
 void packet_handler(WIN * win,char ** packets,int size);
 void open_pcap_file(char *name);
+void info_handler(WIN *win);
+void show_info(WIN *win);
