@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "menu.h": "c",
+        "init.h": "c",
+        "sniffer.h": "c",
+        "stdlib.h": "c",
+        "typeinfo": "c",
+        "ip_icmp.h": "c",
+        "array": "c",
+        "hash_map": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "utility": "c",
+        "valarray": "c",
+        "*.tcc": "c",
+        "memory": "c",
+        "istream": "c",
+        "functional": "c",
+        "tuple": "c",
+        "variant": "c"
+    }
+}

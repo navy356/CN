@@ -1,0 +1,8 @@
+#pragma once
+
+#define MAX_BUFFER_SIZE 300
+#define MAX_DEVICES 100
+#define MIN_ENTRY_SIZE 20
+#define MAX_PANELS 3
+#define MAX_PCAP_LEN 65536
+#define MAX_PACKETS 65536
