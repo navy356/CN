@@ -2,4 +2,4 @@
 #include <ncurses.h>
 #include <stdlib.h>
 
-void init();
+void init(char * file);

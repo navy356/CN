@@ -21,8 +21,11 @@ ITEM **items = NULL;
 int convo = 0;
 int count = 0;
 int disable = 0;
-int piggybacking=0;
-int not_piggybacking=0;
+int piggybacking = 0;
+int not_piggybacking = 0;
+int gmode = 0;
+int time_set = 0;
+int retransmissions = 0;
 
 void init_sniffer()
 {
@@ -40,28 +43,70 @@ int getDisable()
 	return disable;
 }
 
+void save_pcap()
+{
+	pcap_dumper_t *pd = pcap_dump_open(handle, "dump.pcap");
+	if (pd == NULL)
+	{
+		return;
+	}
+	NODE_PTR tmp = head;
+	if (tmp->next != NULL)
+	{
+		tmp = tmp->next;
+	}
+	while (tmp != NULL)
+	{
+		pcap_dump((u_char *)pd, tmp->header, tmp->buffer);
+		tmp = tmp->next;
+	}
+
+	pcap_dump_close(pd);
+}
+
 void *start_loop(void *dummy)
 {
 	pcap_loop(handle, 0, process_packet, NULL);
 }
-void start_capture(char *devname, WIN *win)
+void start_capture(char *devname, WIN *win, int mode)
 {
-	cap_window = win;
-	char errbuf[MAX_BUFFER_SIZE];
-	handle = pcap_open_live(devname, 65536, 1, 1000, errbuf);
-	if (handle == NULL)
-	{
-		endwin();
-		fprintf(stderr, "Couldn't open device %s : %s\n", devname, errbuf);
-		exit(1);
-	}
 	time_t rawtime;
 	struct tm *timeinfo;
-	time(&rawtime);
+
+	if (mode == 0)
+		time(&rawtime);
+	else
+		rawtime = 0;
+
 	timeinfo = localtime(&rawtime);
 	time_init = mktime(timeinfo);
-	pthread_t thread_id;
-	pthread_create(&thread_id, NULL, start_loop, NULL);
+	cap_window = win;
+	char errbuf[MAX_BUFFER_SIZE];
+	if (mode == 0)
+	{
+		handle = pcap_open_live(devname, 65536, 1, 1000, errbuf);
+		if (handle == NULL)
+		{
+			endwin();
+			fprintf(stderr, "Couldn't open device %s : %s\n", devname, errbuf);
+			exit(1);
+		}
+		pthread_t thread_id;
+		pthread_create(&thread_id, NULL, start_loop, NULL);
+	}
+	else
+	{
+		gmode = 1;
+		handle = pcap_open_offline_with_tstamp_precision(devname, 1, errbuf);
+		if (handle == NULL)
+		{
+			endwin();
+			fprintf(stderr, "Couldn't open file %s : %s\n", devname, errbuf);
+			exit(1);
+		}
+		pcap_loop(handle, 0, process_packet, NULL);
+		updateCapWin(win);
+	}
 }
 
 void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char *buffer)
@@ -71,8 +116,18 @@ void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char
 	char *destination = (char *)calloc(20, sizeof(char));
 	char *protocol = (char *)calloc(10, sizeof(char));
 	char *info = (char *)calloc(MAX_BUFFER_SIZE, sizeof(char));
-	//Get the IP Header part of this packet , excluding the ethernet header
+
 	struct iphdr *iph = (struct iphdr *)(buffer + sizeof(struct ethhdr));
+
+	if (gmode != 0 && time_set == 0)
+	{
+		time_set = 1;
+		time_t rawtime;
+		struct tm *timeinfo;
+		rawtime = header->ts.tv_sec;
+		timeinfo = localtime(&rawtime);
+		time_init = mktime(timeinfo);
+	}
 
 	memset(&source, 0, sizeof(source));
 	source.sin_addr.s_addr = iph->saddr;
@@ -83,16 +138,15 @@ void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char
 	int key;
 
 	int flag = 1;
-	switch (iph->protocol) //Check the Protocol and do accordingly...
+	switch (iph->protocol)
 	{
 	case 6: //TCP Protocol
 		++tcp;
 		strcpy(protocol, "tcp");
 		key = trackConversations(header, buffer);
-		//store_tcp_packet(buffer, size);
 		break;
 
-	default: //Some Other Protocol like ARP etc.
+	default:
 		flag = 0;
 		++others;
 		break;
@@ -102,20 +156,21 @@ void process_packet(u_char *user, const struct pcap_pkthdr *header, const u_char
 
 	if (flag == 1)
 	{
-		insert(&head, tcp, header, buffer, source_ip, destination, protocol, info, key);
+		struct pcap_pkthdr *header_tmp = (struct pcap_pkthdr *)malloc(sizeof(struct pcap_pkthdr));
+		header_tmp->caplen = header->caplen;
+		header_tmp->len = header->len;
+		struct timeval ts;
+		ts = header->ts;
+		header_tmp->ts = ts;
+		u_char *buf_tmp = (u_char *)malloc(header->caplen);
+		memcpy(buf_tmp, buffer, header->caplen);
+
+		insert(&head, tcp, (const struct pcap_pkthdr *)header_tmp, (const u_char *)buf_tmp, source_ip, destination, protocol, info, key);
 		parseConvo(key);
-		/*packet_menu_entry(100);
-		printf("printing format\n");
-		int l =getLen(&head);
-		int c=100;
-		char **tmp= get_ipv4_header(l,c);
-		for(int i=0; i<5; i++)
-		{
-			puts(tmp[i]);
-		}*/
 		if (disable == 0)
 		{
-			updateCapWin(cap_window);
+			if (gmode == 0)
+				updateCapWin(cap_window);
 		}
 	}
 }
@@ -236,11 +291,22 @@ void parseConvo(int conv_key)
 		tmp = tmp->next;
 	}
 
-	int seq1 = -1;
-	int seq2 = -1;
-	int ack2 = -1;
-	int ack1 = -1;
+	unsigned int seq1 = 0;
+	unsigned int seq2 = 0;
+	unsigned int ack2 = 0;
+	unsigned int ack1 = 0;
+	unsigned int next_ack1 = 0;
+	unsigned int next_ack2 = 0;
 
+	int c1 = 0;
+	int c2 = 0;
+
+	int fin = 0;
+	int finack = 0;
+	int fin2 = 0;
+	int finack2 = 0;
+	unsigned int finseq1 = 0;
+	unsigned int finseq2 = 0;
 	while (tmp != NULL)
 	{
 		if (tmp->buffer == NULL)
@@ -290,18 +356,167 @@ void parseConvo(int conv_key)
 				flag1 = 1;
 				updateInfo(&head, tmp->key, "FIN|");
 			}
+		}
+		int header_size = sizeof(struct ethhdr) + iphdrlen + tcph->doff * 4;
+		int data_size = (tmp->header->len - header_size) / 8;
 
-			if (flag1 == 1 && flag2 == 1)
+		memset(&source, 0, sizeof(source));
+		source.sin_addr.s_addr = iph->saddr;
+
+		memset(&dest, 0, sizeof(dest));
+		dest.sin_addr.s_addr = iph->daddr;
+
+		char *src = (char *)calloc(20, sizeof(char));
+		char *dst = (char *)calloc(20, sizeof(char));
+		strcpy(src, inet_ntoa(source.sin_addr));
+		strcpy(dst, inet_ntoa(dest.sin_addr));
+		unsigned int sport = (unsigned int)ntohs(tcph->source);
+		unsigned int dport = (unsigned int)ntohs(tcph->dest);
+
+		int fl = flow(&convo_head, src, dst, sport, dport, conv_key);
+
+		NODEC_PTR tmpc = getNodec(&convo_head, conv_key);
+
+		if (c1 == 0 && fl == 1)
+		{
+			seq1 = ntohl(tcph->th_seq);
+			next_ack1 = seq1 + data_size;
+			if ((tcph->syn ^ 1) == 0 || (tcph->fin ^ 1) == 0)
 			{
-				piggybacking++;
-				updateInfo(&head, tmp->key, "*|");
+				next_ack1 = next_ack1 + 1;
 			}
-			else
+			ack1 = ntohl(tcph->th_ack);
+			c1 = 1;
+			if ((tcph->fin ^ 1) == 0)
 			{
-				piggybacking--;
+				fin++;
+				finseq1=next_ack1;
+			}
+			if ((tcph->ack ^ 1) == 0)
+			{
+				if (fin2 > finack2)
+				{
+					if(ack1==finseq2)
+						finack2++;
+				}
 			}
 		}
+		else if (c2 == 0 && fl == 0)
+		{
+			seq2 = ntohl(tcph->th_seq);
+			ack2 = ntohl(tcph->th_ack);
+			if (flag2 == 1 && next_ack1 != ack2)
+			{
+				//updateInfo(&head, tmp->key, "RT|");
+			}
+			next_ack2 = seq2 + data_size;
+			if ((tcph->syn ^ 1) == 0 || (tcph->fin ^ 1) == 0)
+				next_ack2 += 1;
+
+			c2 = 1;
+
+			if ((tcph->fin ^ 1) == 0)
+			{
+				fin++;
+				finseq2=next_ack2;
+			}
+			if ((tcph->ack ^ 1) == 0)
+			{
+				if (fin > finack)
+				{
+					if(ack2==finseq1)
+						finack++;
+				}
+			}
+		}
+		else if (fl == 1)
+		{
+			seq1 = ntohl(tcph->th_seq);
+			ack1 = ntohl(tcph->th_ack);
+
+			if (flag2 == 1 && next_ack2 != ack1)
+			{
+				//updateInfo(&head, tmp->key, "RT|");
+			}
+			if (data_size > 0 || ((tcph->syn ^ 1) == 0 || (tcph->fin ^ 1) == 0))
+			{
+				if ((seq1 < next_ack1) && (tcph->rst ^ 1) != 0)
+				{
+					updateInfo(&head, tmp->key, "RT|");
+					if(finishedInfo(&head,tmp->key)==0)
+					{
+						retransmissions++;
+					}
+				}
+			}
+			next_ack1 = seq1 + data_size;
+			if ((tcph->syn ^ 1) == 0 || (tcph->fin ^ 1) == 0)
+				next_ack1 += 1;
+
+			if ((tcph->fin ^ 1) == 0)
+			{
+				fin++;
+				finseq1=next_ack1;
+			}
+			if ((tcph->ack ^ 1) == 0)
+			{
+				if (fin2 > finack2)
+				{
+					if(ack1==finseq2)
+						finack2++;
+				}
+			}
+		}
+		else if (fl == 0)
+		{
+			seq2 = ntohl(tcph->th_seq);
+			ack2 = ntohl(tcph->th_ack);
+			if (flag2 == 1 && next_ack1 != ack2)
+			{
+				//updateInfo(&head, tmp->key, "RT|");
+			}
+			if (data_size > 0 || ((tcph->syn ^ 1) == 0 || (tcph->fin ^ 1) == 0))
+			{
+				if ((seq2 < next_ack2) && (tcph->rst ^ 1) != 0)
+				{
+					updateInfo(&head, tmp->key, "RT|");
+				}
+			}
+			next_ack2 = seq2 + data_size;
+			if ((tcph->syn ^ 1) == 0 || (tcph->fin ^ 1) == 0)
+				next_ack2 += 1;
+
+			if ((tcph->fin ^ 1) == 0)
+			{
+				fin++;
+				finseq2=next_ack2;
+			}
+			if ((tcph->ack ^ 1) == 0)
+			{
+				if (fin > finack)
+				{
+					if(ack2==finseq1)
+						finack++;
+				}
+			}
+		}
+
+		if (flag1 == 1 && flag2 == 1)
+		{
+			piggybacking++;
+			updateInfo(&head, tmp->key, "*|");
+		}
+		else
+		{
+			not_piggybacking++;
+		}
+
+		updateInfo(&head, tmp->key, "~");
 		tmp = tmp->next;
+		if ((fin >= 1) && (finack >= 1) && (fin2 >=1 ) && (finack2 >= 1))
+		{
+			setFinishc(&convo_head, tmp->convo);
+		}
 	}
 }
 
@@ -403,8 +618,8 @@ char **get_ipv4_header(int key, int row_len)
 	memset(&tmp3, 0, sizeof(tmp3));
 
 	sprintf(tmp, "id %hu", ntohs(iph->id));
-	sprintf(tmp2, "RF %hu| DF %hu| MF%hu", (uint8_t)((iph->frag_off & IP_RF) != 0), (uint8_t)((iph->frag_off & IP_DF) != 0), (uint8_t)((iph->frag_off & IP_MF) != 0));
-	sprintf(tmp3, "Frag offset %hu", (uint16_t)(iph->frag_off & IP_OFFMASK));
+	sprintf(tmp2, "RF %hu| DF %hu| MF %hu", (uint8_t)((ntohs(iph->frag_off) & IP_RF) != 0), (uint8_t)((ntohs(iph->frag_off) & IP_DF) != 0), (uint8_t)((ntohs(iph->frag_off) & IP_MF) != 0));
+	sprintf(tmp3, "Frag offset %hu", (uint16_t)(ntohs(iph->frag_off) & IP_OFFMASK));
 
 	sprintf(entry2, entry2_format, print_centre(tmp, col_id), print_centre(tmp2, col_flags), print_centre(tmp3, col_foff));
 
@@ -494,10 +709,12 @@ char **get_tcp_packet(int key, int row_len)
 	memset(&tmp1, 0, sizeof(tmp1));
 	memset(&tmp2, 0, sizeof(tmp2));
 
-	sprintf(tmp1, "seq no %lu", (unsigned int)tcph->seq);
+	unsigned int tcpack = ntohl(tcph->th_ack);
+	unsigned int seq = ntohl(tcph->th_seq);
+	sprintf(tmp1, "seq no %lu", (unsigned int)seq);
 	sprintf(entry2, entry2_format, print_centre(tmp1, col_seq));
 
-	sprintf(tmp2, "ack no %lu", (unsigned int)tcph->ack_seq);
+	sprintf(tmp2, "ack no %lu", (unsigned int)tcpack);
 	sprintf(entry3, entry3_format, print_centre(tmp2, col_acks));
 
 	memset(&tmp1, 0, sizeof(tmp1));

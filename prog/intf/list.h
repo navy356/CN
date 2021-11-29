@@ -20,3 +20,4 @@ NODE_PTR init_list();
 int getLen(NODE_PTR * head);
 NODE_PTR find_convo(NODE_PTR * head, int convo);
 void updateInfo(NODE_PTR * head,int key,char * info);
+int finishedInfo(NODE_PTR * head,int key);

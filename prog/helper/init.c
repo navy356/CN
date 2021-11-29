@@ -3,9 +3,9 @@
 #include "devices.h"
 #include "sniffer.h"
 
-void init()
+void init(char * file)
 {
     init_sniffer();
     init_devices();
-    init_windows();
+    init_windows(file);
 }

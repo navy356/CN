@@ -18,3 +18,4 @@ NODEC_PTR init_listc();
 int getLenc(NODEC_PTR * head);
 int findKeyc(NODEC_PTR * head, char * source, char * dest, uint16_t sport, uint16_t dport);
 void setFinishc(NODEC_PTR * head, int key);
+int flow(NODEC_PTR *head, char *source, char *dest, uint16_t sport, uint16_t dport, int convo_key);

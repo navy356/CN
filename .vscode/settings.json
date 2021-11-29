@@ -17,6 +17,7 @@
         "istream": "c",
         "functional": "c",
         "tuple": "c",
-        "variant": "c"
+        "variant": "c",
+        "inet.h": "c"
     }
 }

@@ -87,6 +87,9 @@ void capture_menu_handler(WIN *win)
             cur = item_index(cur_item);
             wrefresh(win->menuw);
             break;
+        case 's':
+            save_pcap();
+            break;
         case 10: /* Enter */
         {
             ITEM *cur;
@@ -124,8 +127,18 @@ void chosen(char *name, WIN *win)
     WIN *cap_window = getCaptureWindow(0, 0, h, w);
     updateCapWin(cap_window);
     name = trim(name);
-    start_capture(name, cap_window);
+    start_capture(name, cap_window,0);
     wclear(win->menuw);
+    capture_menu_handler(cap_window);
+}
+void open_pcap_file(char *name)
+{
+    int h, w;
+    getmaxyx(getWin(), h, w);
+    WIN *cap_window = getCaptureWindow(0, 0, h, w);
+    updateCapWin(cap_window);
+    name = trim(name);
+    start_capture(name, cap_window,1);
     capture_menu_handler(cap_window);
 }
 

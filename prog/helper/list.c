@@ -100,6 +100,10 @@ NODE_PTR find_convo(NODE_PTR * head, int convo)
 
 void updateInfo(NODE_PTR * head,int key,char * info)
 {
+    if(finishedInfo(head,key)==1)
+    {
+        return;
+    }
     NODE_PTR tmp = getNode(head,key);
     if(tmp==NULL)
     {
@@ -112,6 +116,24 @@ void updateInfo(NODE_PTR * head,int key,char * info)
     else
     {   
         tmp->info = strcat(tmp->info,info);
+    }
+}
+
+int finishedInfo(NODE_PTR * head,int key)
+{
+    NODE_PTR tmp = getNode(head,key);
+    if(tmp==NULL)
+    {
+        return 0;
+    }
+    int l = strlen(tmp->info);
+    if(tmp->info[l-1]=='~')
+    {
+        return 1;
+    }
+    else
+    {   
+        return 0;
     }
 }
 

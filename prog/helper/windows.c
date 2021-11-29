@@ -11,7 +11,7 @@
 
 WINDOW *wnd;
 
-void init_windows()
+void init_windows(char *file)
 {
     wnd = initscr();
     setlocale(LC_ALL, "");
@@ -38,13 +38,20 @@ void init_windows()
 
     wrefresh(wnd);
 
-    int h;
-    int w;
-    getmaxyx(wnd, h, w);
-    WIN *dev_window = getDeviceWindow(0, 0, h, w);
-    postWin(dev_window);
-    postDevHeader(dev_window);
-    device_menu_handler(dev_window);
+    if (file == NULL)
+    {
+        int h;
+        int w;
+        getmaxyx(wnd, h, w);
+        WIN *dev_window = getDeviceWindow(0, 0, h, w);
+        postWin(dev_window);
+        postDevHeader(dev_window);
+        device_menu_handler(dev_window);
+    }
+    else
+    {
+        open_pcap_file(file);
+    }
 }
 
 WINDOW *getWin()
@@ -117,7 +124,7 @@ WIN *getPacketWindow(int x, int y, int h, int w)
 
 void updatePacketWindow(WIN *win, char **packet, int size, int y)
 {
-    keypad(win->menuw,true);
+    keypad(win->menuw, true);
     wbkgd(win->menuw, COLOR_PAIR(1));
     wbkgd(win->sub_menuw, COLOR_PAIR(1));
     wclear(win->menuw);
@@ -139,9 +146,9 @@ void print_packet(WIN *win, char **packet, int size, int start)
     {
         start = start - h;
     }
-    if(start<0)
+    if (start < 0)
     {
-        start=0;
+        start = 0;
     }
     for (int i = start; i < size; i++)
     {

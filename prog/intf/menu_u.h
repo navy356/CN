@@ -12,3 +12,4 @@ void capture_menu_handler(WIN *win);
 int getCur();
 void packetChosen(char * name, WIN *win);
 void packet_handler(WIN * win,char ** packets,int size);
+void open_pcap_file(char *name);

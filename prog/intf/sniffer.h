@@ -10,7 +10,7 @@
 #include<menu.h>
 #include "windows.h"
 
-void start_capture(char * devname,WIN * win);
+void start_capture(char * devname,WIN * win,int mode);
 void process_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *buffer);
 void init_sniffer();
 ITEM ** packet_menu_entry(int row_len);
@@ -22,3 +22,4 @@ int getDisable();
 char * get_ethernet_header(int key,int row_len);
 char ** get_ipv4_header(int key,int row_len);
 char ** get_tcp_packet(int key, int row_len);
+void save_pcap();

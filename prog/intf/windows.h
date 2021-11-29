@@ -12,7 +12,7 @@ struct win
 };
 
 WINDOW * getWin();
-void init_windows();
+void init_windows(char * file);
 void print_in_middle(WINDOW *win, char *string, chtype color);
 void postWin(WIN * win);
 void postDevHeader(WIN * win);
