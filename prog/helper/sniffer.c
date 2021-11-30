@@ -554,6 +554,10 @@ void parseConvo(int conv_key)
 		{
 			setFinishc(&convo_head, tmp->convo);
 		}
+		if((tcph->rst ^ 1) == 0)
+		{
+			setFinishc(&convo_head, tmp->convo);
+		}
 	}
 }
 
